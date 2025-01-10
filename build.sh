@@ -29,6 +29,7 @@ debug_flag=0
 dry_run=0
 use_kitpick=0
 build_cudagl=0
+build_cudnn=0
 
 err() {
     local mesg=$1; shift
@@ -118,6 +119,7 @@ usage() {
     echo "    --arch=csv            - Target architectures as a comma separated string."
     echo "    --kitpick             - Build from the kitpick directory."
     echo "    --cudagl              - Build a cudagl image set. x86_64 only."
+    echo "    --with-cudnn          - Build images including cuDNN."
     echo
     exit 155
 }
@@ -207,6 +209,9 @@ main() {
         elif [[ ${args[$a]} == "--cudagl" ]]; then
             debug "found command '${args[$a]}'"
             build_cudagl=1
+        elif [[ ${args[$a]} == "--with-cudnn" ]]; then
+            debug "found command '${args[$a]}'"
+            build_cudnn=1
         elif [[ ${args[$a]} == "--image-name" ]]; then
             debug "found command '${args[$a]}'"
             IMAGE_NAME=${args[(($a+1))]}
@@ -247,6 +252,7 @@ main() {
 
     if [[ ${build_cudagl} -eq 0 ]]; then
         run_cmd cp NGC-DL-CONTAINER-LICENSE ${BASE_PATH}/${OS_PATH_NAME}/base/
+        run_cmd cp KMU.crt ${BASE_PATH}/${OS_PATH_NAME}/base/
         run_cmd cp -R entrypoint.d nvidia_entrypoint.sh ${BASE_PATH}/${OS_PATH_NAME}/runtime/
 
         run_cmd docker buildx build --pull ${LOAD_ARG} ${PUSH_ARG} ${PLATFORM_ARG} \
@@ -262,6 +268,19 @@ main() {
             -t "${IMAGE_NAME}:${CUDA_VERSION}-devel-${OS}${OS_VERSION}${IMAGE_SUFFIX:+-${IMAGE_SUFFIX}}" \
             --build-arg "IMAGE_NAME=${IMAGE_NAME}" \
             "${BASE_PATH}/${OS_PATH_NAME}/devel"
+
+        if [[ ${build_cudnn} -eq 1 ]]; then
+            msg "Building cuDNN images..."
+            run_cmd docker buildx build --pull ${LOAD_ARG} ${PUSH_ARG} ${PLATFORM_ARG} \
+                -t "${IMAGE_NAME}:${CUDA_VERSION}-cudnn-runtime-${OS}${OS_VERSION}${IMAGE_SUFFIX:+-${IMAGE_SUFFIX}}" \
+                --build-arg "IMAGE_NAME=${IMAGE_NAME}" \
+                -f "${BASE_PATH}/${OS_PATH_NAME}/runtime/cudnn/Dockerfile" .
+
+            run_cmd docker buildx bulid --pull ${LOAD_ARG} ${PUSH_ARG} ${PLATFORM_ARG} \
+                -t "${IMAGE_NAME}:${CUDA_VERSION}-cudnn-devel-${OS}${OS_VERSION}${IMAGE_SUFFIX:+-${IMAGE_SUFFIX}}" \
+                --build-arg "IMAGE_NAME=${IMAGE_NAME}" \
+                -f "${BASE_PATH}/${OS_PATH_NAME}/devel/cudnn/Dockerfile" .
+        fi
 
         msg "${script_name} END"
     else
