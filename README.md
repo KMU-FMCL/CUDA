@@ -7,6 +7,10 @@ Container images are available from:
 - https://ngc.nvidia.com/catalog/containers/nvidia:cuda
 - https://hub.docker.com/r/nvidia/cuda
 
+## Target
+- x86_64 
+- aarch64
+
 ## Announcement
 
 ### Cuda 12 images are now LIVE
